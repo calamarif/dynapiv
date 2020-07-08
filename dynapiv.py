@@ -1,5 +1,11 @@
+__author__ = 'Callum'
+#dynapiv.py - Dynamically pivot a project by updating it's dataset
+#Python 3.7.3
+#Version: 0.2
+#Date: Jul 7th 2020
+
 import requests, json, copy
-# from botocore.vendored import requests
+from requests.auth import HTTPBasicAuth
 
 def get_project_script(auth_token,paxata_url,projectId):
     url_request = (paxata_url + "/scripts?projectId=" + projectId + "&version=" + "-1")
@@ -108,28 +114,28 @@ def update_project_script_with_new_libraryid(temp_json_of_project, libraryId, li
             step['importStep']['libraryVersion'] = library_version
     return(temp_json_of_project)
 
-def update_project():
+
+def update_project(event, context):
+    # *****************THESE ARE YO VARIABLES - YOU NEED TO EDIT THESE *******
+    paxata_url = event['paxata_url']
+    paxata_rest_token = event['paxata_rest_token']
+    projectId = event['projectId']
+    libraryId = event['libraryId']
+
     # variables to set
-    paxata_rest_token = "47dfcdd37fa64428acffc0ed32f93e61"
-    
+    #paxata_rest_token = "47dfcdd37fa64428acffc0ed32f93e61"
     # ID of the project you want to dynamically update the script of
-    projectId = "37969e3b0b0b49e1bc1d8ace785343d4"
-
+    #projectId = "37969e3b0b0b49e1bc1d8ace785343d4"
     # This is the libraryId of the dataset that will update the project
-    libraryId = "d285c04e4d63456d97e8b6daf8d682f4"
+    #libraryId = "d285c04e4d63456d97e8b6daf8d682f4"
+    #paxata_url = "https://dataprep.paxata.com/rest"
+    # end of variables to set
 
-    paxata_url = "https://dataprep.paxata.com/rest"
-    from requests.auth import HTTPBasicAuth
     auth_token = HTTPBasicAuth("", paxata_rest_token)
 
     # Open config files
-    file_object = open("./config/deduplicate.json", "r")
-    json_deduplicate_config = json.loads(file_object.read())
     json_deduplicate_config = '{"type": "Pivot","active": true,"publishPoints": null,"annotation": null,"anchors": ["FIELD 1 OF 2 GOES HERE"],"columnNames": [],"aggregateFunctions": [{"columnName": "FIELD 2 OF 2 GOES HERE","newColumnName": "","aggregateType": "Sum"}],"pivotValues": [],"unpivotColumnName": "Columns","unpivotMetricName": "Values","pivotType": "DeDuplicate","dedupMode": "Exact","facets": null,"muteFacets": null,"$validationErrors": {"Error": [],"Warning": []},"color": "#999"}'
     json_deduplicate_config = json.loads(json_deduplicate_config)
-    #file_object = open("./config/pivot.json", "r")
-    #json_pivot_config = json.loads(file_object.read())
-    #json_pivot_config =
 
     #get the json of the project we want to update
     json_of_project = get_project_script(auth_token,paxata_url,projectId)
@@ -142,11 +148,11 @@ def update_project():
             existing_pivot_column_name = step['columnNames']
             existing_pivot_values_aggregateFunctions_columnName = step['aggregateFunctions'][0]['columnName']
 
-
-    # Update the dedup config.json to the column that is used in the pivot (in the project)
+    #Update the dedup config.json to the column that is used in the pivot (in the project)
     json_deduplicate_config['aggregateFunctions'][0]['columnName'] = existing_pivot_values_aggregateFunctions_columnName
     json_deduplicate_config['anchors'] = existing_pivot_column_name
 
+    #take a deep copy of the json dictionary so we're not updating the same thing
     temp_json_of_project = copy.deepcopy(json_of_project)
     #remove all but the first step from the project
     del temp_json_of_project['steps'][1:]
@@ -167,7 +173,7 @@ def update_project():
     answerset_id = run_a_project(auth_token,paxata_url,projectId)
     pivot_columns_json = get_paxata_library_data(auth_token,paxata_url,answerset_id)
 
-    # nested for loop to extract the column names (in a list)
+    # nested for loop to extract the new column names (in a list)
     pivot_columns_names = [v for lst in pivot_columns_json['data'] for k, v in lst.items()]
     temp_list = []
     #create the structure we need (a list of lists)
